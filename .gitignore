@@ -1,0 +1,7 @@
+node_modules/
+*.log
+xray
+xray.zip
+config.json
+vmess_link.txt
+.env
