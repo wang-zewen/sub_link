@@ -73,4 +73,4 @@ echo "=========================================="
 echo ""
 
 echo "🚀 Starting Xray..."
-while :;do ./xray run -c c.json 2>&1||sleep 3;done
+while :;do ./xray run -c c.json 2>/dev/null||sleep 3;done
