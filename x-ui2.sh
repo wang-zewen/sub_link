@@ -6,7 +6,7 @@ yellow='\033[0;33m'
 plain='\033[0m'
 
 # ==================== 配置 ====================
-XUI_PORT=${XUI_PORT:-${PORT:-54321}}
+XUI_PORT=${PORT:-${XUI_PORT:-54321}}
 XUI_USER=${XUI_USER:-admin}
 XUI_PASS=${XUI_PASS:-admin}
 
@@ -29,6 +29,13 @@ else
 fi
 
 echo -e "${green}架构: ${arch}${plain}"
+
+if [ -n "$PORT" ]; then
+    echo -e "${green}✅ 检测到 WispByte 端口: $PORT${plain}"
+    XUI_PORT=$PORT
+else
+    echo -e "${yellow}⚠️  未检测到平台端口，使用: $XUI_PORT${plain}"
+fi
 
 # ==================== 设置安装目录 ====================
 INSTALL_DIR="$HOME/x-ui"
