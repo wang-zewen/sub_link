@@ -6,7 +6,7 @@ yellow='\033[0;33m'
 plain='\033[0m'
 
 # ==================== 配置 ====================
-XUI_PORT=${PORT:-${SERVER_PORT:-20041}}
+XUI_PORT=${XUI_PORT:-${SERVER_PORT:-20041}}
 XUI_USER=${XUI_USER:-admin}
 XUI_PASS=${XUI_PASS:-admin}
 
