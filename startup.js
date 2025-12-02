@@ -12,27 +12,48 @@ const XRAY_VERSION = '1.8.24';
 
 // 生成 UUID
 function generateUUID() {
+  // 1. 优先尝试系统命令生成
   try {
     const { execSync } = require('child_process');
-    try {
-      return execSync('cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen', { encoding: 'utf-8' }).trim();
-    } catch {
-      // 如果系统命令失败，使用简单的UUID生成
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-      });
+    const uuid = execSync('cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null', {
+      encoding: 'utf-8',
+      timeout: 2000
+    }).trim();
+
+    if (uuid && uuid.length === 36 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+      return uuid;
     }
-  } catch {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
+  } catch (err) {
+    // 系统命令失败，继续使用其他方法
   }
+
+  // 2. 使用 crypto.randomUUID (Node.js 14.17.0+)
+  try {
+    const crypto = require('crypto');
+    if (crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+  } catch (err) {
+    // crypto.randomUUID 不可用
+  }
+
+  // 3. 使用指定的默认 UUID（如果设置）
+  const DEFAULT_UUID = process.env.DEFAULT_UUID;
+  if (DEFAULT_UUID && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(DEFAULT_UUID)) {
+    console.log('⚠️  Using specified DEFAULT_UUID');
+    return DEFAULT_UUID;
+  }
+
+  // 4. 使用 Math.random 生成（最后的 fallback）
+  console.log('⚠️  System UUID not available, generating UUID with Math.random');
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
+// 获取 UUID：优先使用 VMESS_UUID 环境变量，否则生成
 const UUID = process.env.VMESS_UUID || generateUUID();
 
 // 获取服务器 IP
