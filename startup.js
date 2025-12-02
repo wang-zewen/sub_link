@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 
-import { spawn } from 'child_process';
-import { existsSync, writeFileSync, chmodSync, mkdirSync } from 'fs';
+import { spawn, execSync } from 'child_process';
+import { existsSync, writeFileSync, chmodSync, mkdirSync, unlinkSync } from 'fs';
 import { resolve } from 'path';
+import crypto from 'crypto';
 
 // ==================== 配置 ====================
 const PORT = process.env.PORT || process.env.SERVER_PORT || '20041';
@@ -18,7 +19,6 @@ const DEFAULT_UUID = '9afd1229-b893-40c1-84dd-51e7ce204913';
 function autoGenerateUUID() {
   // 1. 优先尝试系统命令生成
   try {
-    const { execSync } = require('child_process');
     const uuid = execSync('cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null', {
       encoding: 'utf-8',
       timeout: 2000
@@ -33,7 +33,6 @@ function autoGenerateUUID() {
 
   // 2. 使用 crypto.randomUUID (Node.js 14.17.0+)
   try {
-    const crypto = require('crypto');
     if (crypto.randomUUID) {
       return crypto.randomUUID();
     }
@@ -91,7 +90,6 @@ async function getServerIP() {
 // 检测系统架构
 function detectArchitecture() {
   try {
-    const { execSync } = require('child_process');
     const arch = execSync('uname -m', { encoding: 'utf-8' }).trim();
 
     console.log(`🔍 Detected architecture: ${arch}`);
@@ -134,19 +132,6 @@ async function downloadFile(url, outputPath) {
   writeFileSync(outputPath, Buffer.from(buffer));
 }
 
-// 执行命令
-function execCommand(command, args = []) {
-  return new Promise((resolve, reject) => {
-    const { execSync } = require('child_process');
-    try {
-      const result = execSync(`${command} ${args.join(' ')}`, { encoding: 'utf-8' });
-      resolve(result);
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
 // ==================== 主程序 ====================
 
 async function main() {
@@ -174,13 +159,11 @@ async function main() {
       await downloadFile(downloadUrl, zipPath);
 
       // 解压
-      const { execSync } = require('child_process');
       execSync(`unzip -qo ${zipPath} xray`);
       chmodSync('./xray', 0o755);
 
       // 删除 zip 文件
       try {
-        const { unlinkSync } = require('fs');
         unlinkSync(zipPath);
       } catch {}
 
@@ -281,7 +264,6 @@ async function main() {
 
   // 检查文件信息
   try {
-    const { execSync } = require('child_process');
     const fileInfo = execSync(`ls -lh "${absoluteXrayPath}" && file "${absoluteXrayPath}"`, { encoding: 'utf-8' });
     console.log('📋 Xray file info:');
     console.log(fileInfo);
