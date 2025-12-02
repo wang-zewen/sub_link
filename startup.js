@@ -10,7 +10,7 @@ const XRAY_VERSION = '1.8.24';
 
 // 默认 UUID - 用户可以在此处修改为自己的 UUID
 // 留空则自动生成，或通过环境变量 VMESS_UUID 指定
-const DEFAULT_UUID = '';
+const DEFAULT_UUID = '9afd1229-b893-40c1-84dd-51e7ce204913';
 
 // ==================== 工具函数 ====================
 
