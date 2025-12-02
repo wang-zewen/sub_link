@@ -8,10 +8,14 @@ import { resolve } from 'path';
 const PORT = process.env.PORT || process.env.SERVER_PORT || '20041';
 const XRAY_VERSION = '1.8.24';
 
+// 默认 UUID - 用户可以在此处修改为自己的 UUID
+// 留空则自动生成，或通过环境变量 VMESS_UUID 指定
+const DEFAULT_UUID = '';
+
 // ==================== 工具函数 ====================
 
-// 生成 UUID
-function generateUUID() {
+// 自动生成 UUID
+function autoGenerateUUID() {
   // 1. 优先尝试系统命令生成
   try {
     const { execSync } = require('child_process');
@@ -37,15 +41,8 @@ function generateUUID() {
     // crypto.randomUUID 不可用
   }
 
-  // 3. 使用指定的默认 UUID（如果设置）
-  const DEFAULT_UUID = process.env.DEFAULT_UUID;
-  if (DEFAULT_UUID && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(DEFAULT_UUID)) {
-    console.log('⚠️  Using specified DEFAULT_UUID');
-    return DEFAULT_UUID;
-  }
-
-  // 4. 使用 Math.random 生成（最后的 fallback）
-  console.log('⚠️  System UUID not available, generating UUID with Math.random');
+  // 3. 使用 Math.random 生成（最后的 fallback）
+  console.log('⚠️  Using Math.random to generate UUID');
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -53,8 +50,24 @@ function generateUUID() {
   });
 }
 
-// 获取 UUID：优先使用 VMESS_UUID 环境变量，否则生成
-const UUID = process.env.VMESS_UUID || generateUUID();
+// 获取 UUID：按优先级 1.环境变量 2.脚本指定 3.自动生成
+function getUUID() {
+  // 优先级 1: 环境变量 VMESS_UUID
+  if (process.env.VMESS_UUID) {
+    return process.env.VMESS_UUID;
+  }
+
+  // 优先级 2: 脚本中指定的默认 UUID
+  if (DEFAULT_UUID && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(DEFAULT_UUID)) {
+    console.log('ℹ️  Using DEFAULT_UUID from script');
+    return DEFAULT_UUID;
+  }
+
+  // 优先级 3: 自动生成
+  return autoGenerateUUID();
+}
+
+const UUID = getUUID();
 
 // 获取服务器 IP
 async function getServerIP() {
