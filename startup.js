@@ -1,0 +1,221 @@
+#!/usr/bin/env bun
+
+import { spawn } from 'child_process';
+import { existsSync, writeFileSync, chmodSync, mkdirSync } from 'fs';
+import { resolve } from 'path';
+
+// ==================== 配置 ====================
+const PORT = process.env.PORT || process.env.SERVER_PORT || '20041';
+const XRAY_VERSION = '1.8.24';
+
+// ==================== 工具函数 ====================
+
+// 生成 UUID
+function generateUUID() {
+  try {
+    const { execSync } = require('child_process');
+    try {
+      return execSync('cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen', { encoding: 'utf-8' }).trim();
+    } catch {
+      // 如果系统命令失败，使用简单的UUID生成
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+  } catch {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+}
+
+const UUID = process.env.VMESS_UUID || generateUUID();
+
+// 获取服务器 IP
+async function getServerIP() {
+  const urls = ['https://api64.ipify.org', 'https://ifconfig.me'];
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(3000)
+      });
+      if (response.ok) {
+        return await response.text();
+      }
+    } catch (err) {
+      continue;
+    }
+  }
+  return 'UNKNOWN';
+}
+
+// 下载文件
+async function downloadFile(url, outputPath) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download: ${response.statusText}`);
+  }
+
+  const buffer = await response.arrayBuffer();
+  writeFileSync(outputPath, Buffer.from(buffer));
+}
+
+// 执行命令
+function execCommand(command, args = []) {
+  return new Promise((resolve, reject) => {
+    const { execSync } = require('child_process');
+    try {
+      const result = execSync(`${command} ${args.join(' ')}`, { encoding: 'utf-8' });
+      resolve(result);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+// ==================== 主程序 ====================
+
+async function main() {
+  console.log('🚀 VMess Server');
+  console.log(`📌 Port: ${PORT}`);
+
+  // 获取 IP
+  console.log('🌐 Getting server IP...');
+  const IP = await getServerIP();
+  console.log(`✅ Server IP: ${IP}`);
+
+  // 下载 Xray（如果不存在）
+  const xrayPath = resolve('./xray');
+  if (!existsSync(xrayPath)) {
+    console.log('📥 Downloading Xray...');
+    const zipPath = './x.zip';
+    const downloadUrl = `https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-64.zip`;
+
+    try {
+      await downloadFile(downloadUrl, zipPath);
+
+      // 解压
+      const { execSync } = require('child_process');
+      execSync(`unzip -qo ${zipPath} xray`);
+      chmodSync('./xray', 0o755);
+
+      // 删除 zip 文件
+      try {
+        const { unlinkSync } = require('fs');
+        unlinkSync(zipPath);
+      } catch {}
+
+      console.log('✅ Xray installed');
+    } catch (error) {
+      console.error('❌ Failed to download Xray:', error.message);
+      process.exit(1);
+    }
+  }
+
+  // 生成 Xray 配置
+  const config = {
+    log: { loglevel: 'none' },
+    inbounds: [
+      {
+        port: parseInt(PORT),
+        protocol: 'vmess',
+        settings: {
+          clients: [{ id: UUID, alterId: 0 }]
+        },
+        streamSettings: {
+          network: 'tcp',
+          tcpSettings: {
+            acceptProxyProtocol: false,
+            header: {
+              type: 'http',
+              response: {
+                version: '1.1',
+                status: '200',
+                reason: 'OK',
+                headers: {
+                  'Content-Type': ['text/html; charset=utf-8'],
+                  'Transfer-Encoding': ['chunked'],
+                  'Connection': ['keep-alive'],
+                  'Pragma': 'no-cache'
+                }
+              }
+            }
+          }
+        },
+        tag: 'vmess'
+      }
+    ],
+    outbounds: [{ protocol: 'freedom' }]
+  };
+
+  writeFileSync('./c.json', JSON.stringify(config, null, 2));
+
+  // 生成 VMess 链接
+  const vmessConfig = {
+    v: '2',
+    ps: 'VMess-Server',
+    add: IP,
+    port: PORT,
+    id: UUID,
+    aid: '0',
+    net: 'tcp',
+    type: 'http',
+    tls: ''
+  };
+
+  const vmessLink = 'vmess://' + Buffer.from(JSON.stringify(vmessConfig)).toString('base64');
+  writeFileSync('./link.txt', vmessLink);
+
+  // 显示信息
+  console.log('');
+  console.log('==========================================');
+  console.log('🎉 VMess Server Ready!');
+  console.log('==========================================');
+  console.log(`📍 Server: ${IP}:${PORT}`);
+  console.log(`🔑 UUID: ${UUID}`);
+  console.log('');
+  console.log('🔗 VMess Link:');
+  console.log(vmessLink);
+  console.log('');
+  console.log('💾 Link saved to: link.txt');
+  console.log('==========================================');
+  console.log('');
+
+  // 启动 Xray
+  console.log('🚀 Starting Xray...');
+
+  // 无限循环启动 Xray
+  while (true) {
+    try {
+      const xray = spawn('./xray', ['run', '-c', 'c.json'], {
+        stdio: 'inherit'
+      });
+
+      await new Promise((resolve) => {
+        xray.on('exit', (code) => {
+          console.log(`\n⚠️  Xray exited with code ${code}, restarting in 3 seconds...`);
+          setTimeout(resolve, 3000);
+        });
+
+        xray.on('error', (err) => {
+          console.error('❌ Xray error:', err.message);
+          setTimeout(resolve, 3000);
+        });
+      });
+    } catch (error) {
+      console.error('❌ Error running Xray:', error.message);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+  }
+}
+
+// 启动程序
+main().catch((error) => {
+  console.error('❌ Fatal error:', error);
+  process.exit(1);
+});
