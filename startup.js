@@ -88,6 +88,41 @@ async function getServerIP() {
   return 'UNKNOWN';
 }
 
+// 检测系统架构
+function detectArchitecture() {
+  try {
+    const { execSync } = require('child_process');
+    const arch = execSync('uname -m', { encoding: 'utf-8' }).trim();
+
+    console.log(`🔍 Detected architecture: ${arch}`);
+
+    // 架构映射
+    if (arch === 'x86_64' || arch === 'amd64') {
+      return '64';
+    } else if (arch === 'aarch64' || arch === 'arm64') {
+      return 'arm64-v8a';
+    } else if (arch === 'armv7' || arch === 'armv7l') {
+      return 'arm32-v7a';
+    } else if (arch === 'armv6' || arch === 'armv6l') {
+      return 'arm32-v6';
+    } else if (arch.startsWith('mips64')) {
+      return 'mips64';
+    } else if (arch.startsWith('mips')) {
+      return 'mips32';
+    } else if (arch === 's390x') {
+      return 's390x';
+    } else if (arch.startsWith('riscv64')) {
+      return 'riscv64';
+    } else {
+      console.log(`⚠️  Unknown architecture: ${arch}, defaulting to 64-bit`);
+      return '64';
+    }
+  } catch (err) {
+    console.log('⚠️  Could not detect architecture, defaulting to 64-bit');
+    return '64';
+  }
+}
+
 // 下载文件
 async function downloadFile(url, outputPath) {
   const response = await fetch(url);
@@ -123,12 +158,17 @@ async function main() {
   const IP = await getServerIP();
   console.log(`✅ Server IP: ${IP}`);
 
+  // 检测架构
+  const arch = detectArchitecture();
+
   // 下载 Xray（如果不存在）
   const xrayPath = resolve('./xray');
   if (!existsSync(xrayPath)) {
-    console.log('📥 Downloading Xray...');
+    console.log(`📥 Downloading Xray for ${arch}...`);
     const zipPath = './x.zip';
-    const downloadUrl = `https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-64.zip`;
+    const downloadUrl = `https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${arch}.zip`;
+
+    console.log(`📦 Download URL: ${downloadUrl}`);
 
     try {
       await downloadFile(downloadUrl, zipPath);
@@ -147,8 +187,11 @@ async function main() {
       console.log('✅ Xray installed');
     } catch (error) {
       console.error('❌ Failed to download Xray:', error.message);
+      console.error('💡 Please check if your architecture is supported');
       process.exit(1);
     }
+  } else {
+    console.log('✅ Xray already exists');
   }
 
   // 生成 Xray 配置
@@ -223,11 +266,35 @@ async function main() {
   // 启动 Xray
   console.log('🚀 Starting Xray...');
 
+  // 获取绝对路径
+  const absoluteXrayPath = resolve(xrayPath);
+  const absoluteConfigPath = resolve('./c.json');
+
+  console.log(`📂 Xray path: ${absoluteXrayPath}`);
+  console.log(`📂 Config path: ${absoluteConfigPath}`);
+
+  // 验证文件存在和权限
+  if (!existsSync(absoluteXrayPath)) {
+    console.error('❌ Xray executable not found!');
+    process.exit(1);
+  }
+
+  // 检查文件信息
+  try {
+    const { execSync } = require('child_process');
+    const fileInfo = execSync(`ls -lh "${absoluteXrayPath}" && file "${absoluteXrayPath}"`, { encoding: 'utf-8' });
+    console.log('📋 Xray file info:');
+    console.log(fileInfo);
+  } catch (err) {
+    console.log('⚠️  Could not get file info');
+  }
+
   // 无限循环启动 Xray
   while (true) {
     try {
-      const xray = spawn('./xray', ['run', '-c', 'c.json'], {
-        stdio: 'inherit'
+      const xray = spawn(absoluteXrayPath, ['run', '-c', absoluteConfigPath], {
+        stdio: 'inherit',
+        cwd: process.cwd()
       });
 
       await new Promise((resolve) => {
@@ -237,12 +304,18 @@ async function main() {
         });
 
         xray.on('error', (err) => {
-          console.error('❌ Xray error:', err.message);
+          console.error('❌ Xray error:', err);
+          console.error('💡 Error details:', {
+            code: err.code,
+            errno: err.errno,
+            syscall: err.syscall,
+            path: err.path
+          });
           setTimeout(resolve, 3000);
         });
       });
     } catch (error) {
-      console.error('❌ Error running Xray:', error.message);
+      console.error('❌ Error running Xray:', error);
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
