@@ -140,8 +140,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ secrets.DOCKER_USERNAME }}/vless-reality
+          images: vless-reality
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -153,8 +152,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # 只在main分支或tag时推送到Docker Hub
-          push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+          # 只在main分支或tag时且配置了Docker Hub凭证时推送
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

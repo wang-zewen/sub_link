@@ -384,11 +384,15 @@ public class VLessRealityServer {
      */
     private void startXray() throws Exception {
         System.out.println("🚀 Starting Xray...");
+        System.out.println("ℹ️  Xray logs are suppressed. Check c.json if you need to debug.");
+        System.out.println("");
 
         while (true) {
             try {
                 ProcessBuilder pb = new ProcessBuilder("./xray", "run", "-c", "c.json");
-                pb.inheritIO();
+                // 重定向所有输出到null（类似 1>/dev/null 2>&1）
+                pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+                pb.redirectError(ProcessBuilder.Redirect.DISCARD);
                 Process process = pb.start();
 
                 int exitCode = process.waitFor();
