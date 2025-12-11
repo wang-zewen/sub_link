@@ -80,11 +80,20 @@ jobs:
         id: version
         run: |
           if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            # Tag版本 - 正式发布
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
             echo "IS_TAG=true" >> $GITHUB_OUTPUT
             echo "DRAFT=false" >> $GITHUB_OUTPUT
             echo "PRERELEASE=false" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF == refs/heads/main ]]; then
+            # Main分支 - 正式发布（自动版本号）
+            VERSION="v2.0.0-build.${GITHUB_RUN_NUMBER}"
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+            echo "IS_TAG=false" >> $GITHUB_OUTPUT
+            echo "DRAFT=false" >> $GITHUB_OUTPUT
+            echo "PRERELEASE=false" >> $GITHUB_OUTPUT
           else
+            # 其他分支 - 草稿发布
             BRANCH=${GITHUB_REF#refs/heads/}
             COMMIT=${GITHUB_SHA::7}
             echo "VERSION=${BRANCH}-${COMMIT}" >> $GITHUB_OUTPUT
