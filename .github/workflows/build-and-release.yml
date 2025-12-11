@@ -52,7 +52,7 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push'
 
     permissions:
       contents: write
@@ -76,14 +76,33 @@ jobs:
       - name: List artifacts
         run: ls -lh ./artifacts/
 
+      - name: Get version info
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "IS_TAG=true" >> $GITHUB_OUTPUT
+            echo "DRAFT=false" >> $GITHUB_OUTPUT
+            echo "PRERELEASE=false" >> $GITHUB_OUTPUT
+          else
+            BRANCH=${GITHUB_REF#refs/heads/}
+            COMMIT=${GITHUB_SHA::7}
+            echo "VERSION=${BRANCH}-${COMMIT}" >> $GITHUB_OUTPUT
+            echo "IS_TAG=false" >> $GITHUB_OUTPUT
+            echo "DRAFT=true" >> $GITHUB_OUTPUT
+            echo "PRERELEASE=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: ${{ steps.version.outputs.IS_TAG == 'true' && steps.version.outputs.VERSION || format('Build {0}', steps.version.outputs.VERSION) }}
           files: |
             ./artifacts/vmess-server-*.jar
             ./artifacts/vless-reality-server-*.jar
-          draft: false
-          prerelease: false
+          draft: ${{ steps.version.outputs.DRAFT }}
+          prerelease: ${{ steps.version.outputs.PRERELEASE }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -91,7 +110,7 @@ jobs:
   docker-build:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    if: github.event_name == 'push'
 
     steps:
       - name: Checkout code
@@ -121,11 +140,13 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build Docker image
+      - name: Build and Push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false
-          tags: vless-reality:latest
+          # 只在main分支或tag时推送到Docker Hub
+          push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
