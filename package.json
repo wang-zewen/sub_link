@@ -1,13 +1,20 @@
 {
-  "name": "vmess-wispbyte-deploy",
-  "version": "1.0.0",
-  "description": "One-click VMess server deployment for WispByte and other platforms",
-  "main": "server.js",
+  "name": "vless-reality-deploy",
+  "version": "2.0.0",
+  "description": "One-click VLESS+Reality and VMess server deployment",
+  "type": "module",
+  "main": "vless-reality.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node vless-reality.js",
+    "vless": "node vless-reality.js",
+    "vmess": "bash vmess.sh",
+    "dev": "node vless-reality.js",
+    "docker:build": "docker build -t vless-reality .",
+    "docker:run": "docker run -d -p 20041:20041 --name vless-reality-server vless-reality"
   },
   "keywords": [
+    "vless",
+    "reality",
     "vmess",
     "v2ray",
     "xray",
@@ -17,7 +24,7 @@
   "author": "Your Name",
   "license": "MIT",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   },
   "dependencies": {}
 }

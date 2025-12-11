@@ -1,0 +1,8 @@
+.git
+.gitignore
+*.md
+node_modules
+xray
+x.zip
+c.json
+link.txt
