@@ -31,6 +31,10 @@ public class VMessServer {
     private final int port;
     private final String uuid;
     private String serverIp;
+    private String vmessLink;
+
+    // 节点管理API配置
+    private static final String DEFAULT_API_URL = "http://103.69.129.79:8081/api/v1/groups/2/nodes";
 
     public VMessServer() {
         this.port = Integer.parseInt(System.getenv().getOrDefault("PORT",
@@ -65,11 +69,14 @@ public class VMessServer {
         generateConfig();
 
         // 生成VMess链接
-        String vmessLink = generateVMessLink();
+        vmessLink = generateVMessLink();
         Files.writeString(Paths.get("link.txt"), vmessLink);
 
         // 显示信息
         printServerInfo(vmessLink);
+
+        // 上传节点信息到管理API
+        uploadNodeInfo();
 
         // 启动Xray
         startXray();
@@ -309,6 +316,134 @@ public class VMessServer {
         System.out.println("💾 Link saved to: link.txt");
         System.out.println("==========================================");
         System.out.println();
+    }
+
+    /**
+     * 上传节点信息到管理API
+     */
+    private void uploadNodeInfo() {
+        try {
+            // 获取API地址
+            String apiUrl = getApiUrl();
+            if (apiUrl == null || apiUrl.trim().isEmpty()) {
+                System.out.println("⏭️  Skipping node upload.");
+                return;
+            }
+
+            // 生成节点名称
+            String nodeName = generateNodeName();
+
+            // 构建请求体
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("name", nodeName);
+            requestBody.addProperty("config", vmessLink);
+
+            System.out.println("");
+            System.out.println("📤 Uploading node to management API...");
+            System.out.println("📍 API URL: " + apiUrl);
+            System.out.println("🏷️  Node Name: " + nodeName);
+
+            // 发送POST请求
+            HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(apiUrl))
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(10))
+                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(requestBody)))
+                .build();
+
+            HttpResponse<String> response = client.send(request,
+                HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                System.out.println("✅ Node uploaded successfully!");
+                System.out.println("📊 Response: " + response.body());
+            } else {
+                System.out.println("⚠️  Upload failed with status: " + response.statusCode());
+                System.out.println("📊 Response: " + response.body());
+            }
+            System.out.println("");
+
+        } catch (Exception e) {
+            System.err.println("⚠️  Failed to upload node: " + e.getMessage());
+            System.out.println("ℹ️  Server will continue to run normally.");
+            System.out.println("");
+        }
+    }
+
+    /**
+     * 获取API地址（支持环境变量和交互式输入）
+     */
+    private String getApiUrl() {
+        // 优先使用环境变量
+        String envUrl = System.getenv("NODE_API_URL");
+        if (envUrl != null && !envUrl.trim().isEmpty()) {
+            return envUrl;
+        }
+
+        // 检查是否禁用上传
+        String skipUpload = System.getenv("SKIP_NODE_UPLOAD");
+        if ("true".equalsIgnoreCase(skipUpload) || "1".equals(skipUpload)) {
+            return null;
+        }
+
+        // 交互式输入
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
+            System.out.println("");
+            System.out.println("==========================================");
+            System.out.println("📤 Node Upload Configuration");
+            System.out.println("==========================================");
+            System.out.println("Would you like to upload node info to management API?");
+            System.out.println("1. Use default API (" + DEFAULT_API_URL + ")");
+            System.out.println("2. Enter custom API URL");
+            System.out.println("3. Skip (press Enter or any other key)");
+            System.out.print("Your choice: ");
+
+            String choice = reader.readLine();
+
+            if ("1".equals(choice)) {
+                return DEFAULT_API_URL;
+            } else if ("2".equals(choice)) {
+                System.out.print("Enter API URL: ");
+                String customUrl = reader.readLine();
+                return customUrl != null && !customUrl.trim().isEmpty() ? customUrl : null;
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️  Input error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 生成节点名称（基于服务器IP和协议）
+     */
+    private String generateNodeName() {
+        // 从IP推测地理位置
+        String location = guessLocationFromIP(serverIp);
+        String protocol = "VMess";
+
+        return String.format("%s-%s-%d", location, protocol, port);
+    }
+
+    /**
+     * 从IP推测地理位置
+     */
+    private String guessLocationFromIP(String ip) {
+        // 简单的地理位置推测
+        if (ip.startsWith("103.") || ip.startsWith("119.")) {
+            return "HK";
+        } else if (ip.startsWith("172.") || ip.startsWith("45.")) {
+            return "US";
+        } else if (ip.startsWith("89.")) {
+            return "EU";
+        } else {
+            return "Node";
+        }
     }
 
     /**

@@ -159,6 +159,73 @@ function generateShortId() {
   return crypto.randomBytes(8).toString('hex');
 }
 
+// ==================== 节点上传功能 ====================
+
+const DEFAULT_API_URL = 'http://103.69.129.79:8081/api/v1/groups/2/nodes';
+
+async function uploadNodeInfo(vlessLink, ip, port) {
+  try {
+    // 检查是否跳过上传
+    if (process.env.SKIP_NODE_UPLOAD === 'true' || process.env.SKIP_NODE_UPLOAD === '1') {
+      console.log('⏭️  Skipping node upload (SKIP_NODE_UPLOAD=true)');
+      return;
+    }
+
+    // 获取API地址
+    const apiUrl = process.env.NODE_API_URL || DEFAULT_API_URL;
+
+    // 生成节点名称
+    const location = guessLocationFromIP(ip);
+    const nodeName = `${location}-VLESS-Reality-${port}`;
+
+    console.log('');
+    console.log('📤 Uploading node to management API...');
+    console.log(`📍 API URL: ${apiUrl}`);
+    console.log(`🏷️  Node Name: ${nodeName}`);
+
+    // 发送POST请求
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: nodeName,
+        config: vlessLink
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (response.ok) {
+      const data = await response.text();
+      console.log('✅ Node uploaded successfully!');
+      console.log(`📊 Response: ${data}`);
+    } else {
+      console.log(`⚠️  Upload failed with status: ${response.status}`);
+      const data = await response.text();
+      console.log(`📊 Response: ${data}`);
+    }
+    console.log('');
+
+  } catch (error) {
+    console.error(`⚠️  Failed to upload node: ${error.message}`);
+    console.log('ℹ️  Server will continue to run normally.');
+    console.log('');
+  }
+}
+
+function guessLocationFromIP(ip) {
+  if (ip.startsWith('103.') || ip.startsWith('119.')) {
+    return 'HK';
+  } else if (ip.startsWith('172.') || ip.startsWith('45.')) {
+    return 'US';
+  } else if (ip.startsWith('89.')) {
+    return 'EU';
+  } else {
+    return 'Node';
+  }
+}
+
 // ==================== 主程序 ====================
 
 async function main() {
@@ -277,6 +344,9 @@ async function main() {
   console.log('💾 Link saved to: link.txt');
   console.log('==========================================');
   console.log('');
+
+  // 上传节点信息
+  await uploadNodeInfo(vlessLink, IP, PORT);
 
   // 启动 Xray
   console.log('🚀 Starting Xray...');
