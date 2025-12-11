@@ -3,6 +3,7 @@ package com.proxy.vmess;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import java.io.*;
 import java.net.URI;
@@ -209,10 +210,11 @@ public class VMessServer {
         client.addProperty("id", uuid);
         client.addProperty("alterId", 0);
 
+        JsonArray clientsArray = new JsonArray();
+        clientsArray.add(client);
+
         JsonObject settings = new JsonObject();
-        settings.add("clients", GSON.toJsonTree(Collections.singletonList(
-            GSON.fromJson(client, Object.class)
-        )));
+        settings.add("clients", clientsArray);
         inbound.add("settings", settings);
 
         // Stream配置
@@ -230,10 +232,19 @@ public class VMessServer {
         response.addProperty("status", "200");
         response.addProperty("reason", "OK");
 
+        JsonArray contentTypeArray = new JsonArray();
+        contentTypeArray.add("text/html; charset=utf-8");
+
+        JsonArray transferEncodingArray = new JsonArray();
+        transferEncodingArray.add("chunked");
+
+        JsonArray connectionArray = new JsonArray();
+        connectionArray.add("keep-alive");
+
         JsonObject headers = new JsonObject();
-        headers.add("Content-Type", GSON.toJsonTree(Collections.singletonList("text/html; charset=utf-8")));
-        headers.add("Transfer-Encoding", GSON.toJsonTree(Collections.singletonList("chunked")));
-        headers.add("Connection", GSON.toJsonTree(Collections.singletonList("keep-alive")));
+        headers.add("Content-Type", contentTypeArray);
+        headers.add("Transfer-Encoding", transferEncodingArray);
+        headers.add("Connection", connectionArray);
         headers.addProperty("Pragma", "no-cache");
         response.add("headers", headers);
 
@@ -244,16 +255,17 @@ public class VMessServer {
 
         inbound.addProperty("tag", "vmess");
 
-        config.add("inbounds", GSON.toJsonTree(Collections.singletonList(
-            GSON.fromJson(inbound, Object.class)
-        )));
+        JsonArray inboundsArray = new JsonArray();
+        inboundsArray.add(inbound);
+        config.add("inbounds", inboundsArray);
 
         // Outbound配置
         JsonObject outbound = new JsonObject();
         outbound.addProperty("protocol", "freedom");
-        config.add("outbounds", GSON.toJsonTree(Collections.singletonList(
-            GSON.fromJson(outbound, Object.class)
-        )));
+
+        JsonArray outboundsArray = new JsonArray();
+        outboundsArray.add(outbound);
+        config.add("outbounds", outboundsArray);
 
         // 写入配置文件
         Files.writeString(Paths.get("c.json"), GSON.toJson(config));
