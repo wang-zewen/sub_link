@@ -3,6 +3,7 @@ package com.proxy.vless;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import java.io.*;
 import java.net.URI;
@@ -270,10 +271,11 @@ public class VLessRealityServer {
         client.addProperty("id", uuid);
         client.addProperty("flow", "xtls-rprx-vision");
 
+        JsonArray clientsArray = new JsonArray();
+        clientsArray.add(client);
+
         JsonObject settings = new JsonObject();
-        settings.add("clients", GSON.toJsonTree(Collections.singletonList(
-            GSON.fromJson(client, Object.class)
-        )));
+        settings.add("clients", clientsArray);
         settings.addProperty("decryption", "none");
         inbound.add("settings", settings);
 
@@ -286,29 +288,42 @@ public class VLessRealityServer {
         realitySettings.addProperty("show", false);
         realitySettings.addProperty("dest", dest);
         realitySettings.addProperty("xver", 0);
-        realitySettings.add("serverNames", GSON.toJsonTree(Collections.singletonList(serverNames)));
+
+        JsonArray serverNamesArray = new JsonArray();
+        serverNamesArray.add(serverNames);
+        realitySettings.add("serverNames", serverNamesArray);
+
         realitySettings.addProperty("privateKey", privateKey);
-        realitySettings.add("shortIds", GSON.toJsonTree(Collections.singletonList(shortId)));
+
+        JsonArray shortIdsArray = new JsonArray();
+        shortIdsArray.add(shortId);
+        realitySettings.add("shortIds", shortIdsArray);
         streamSettings.add("realitySettings", realitySettings);
         inbound.add("streamSettings", streamSettings);
 
         // Sniffing配置
         JsonObject sniffing = new JsonObject();
         sniffing.addProperty("enabled", true);
-        sniffing.add("destOverride", GSON.toJsonTree(Arrays.asList("http", "tls", "quic")));
+
+        JsonArray destOverrideArray = new JsonArray();
+        destOverrideArray.add("http");
+        destOverrideArray.add("tls");
+        destOverrideArray.add("quic");
+        sniffing.add("destOverride", destOverrideArray);
         inbound.add("sniffing", sniffing);
 
-        config.add("inbounds", GSON.toJsonTree(Collections.singletonList(
-            GSON.fromJson(inbound, Object.class)
-        )));
+        JsonArray inboundsArray = new JsonArray();
+        inboundsArray.add(inbound);
+        config.add("inbounds", inboundsArray);
 
         // Outbound配置
         JsonObject outbound = new JsonObject();
         outbound.addProperty("protocol", "freedom");
         outbound.addProperty("tag", "direct");
-        config.add("outbounds", GSON.toJsonTree(Collections.singletonList(
-            GSON.fromJson(outbound, Object.class)
-        )));
+
+        JsonArray outboundsArray = new JsonArray();
+        outboundsArray.add(outbound);
+        config.add("outbounds", outboundsArray);
 
         // 写入配置文件
         Files.writeString(Paths.get("c.json"), GSON.toJson(config));
