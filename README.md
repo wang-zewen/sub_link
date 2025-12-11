@@ -10,13 +10,14 @@
 - 🛡️ VLESS+Reality 协议，更安全更隐蔽
 - 🐳 支持 Docker 容器化部署
 - 🔄 自动端口检测
-- 📦 支持多种部署方式：Shell、JavaScript、Docker
+- 📦 支持多种部署方式：Shell、JavaScript、Java、Docker
+- ☕ Java版本可执行JAR文件，跨平台运行
 
 ## 🎯 支持平台
 
 - [WispByte](https://console.wispbyte.com/)
 - Docker
-- 任何支持 Node.js 或 Bash 的平台
+- 任何支持 Node.js、Java 或 Bash 的平台
 
 ## 📦 快速部署
 
@@ -40,7 +41,31 @@ node vless-reality.js
 bash <(curl -sL https://raw.githubusercontent.com/wang-zewen/sub_link/main/vmess.sh)
 ```
 
-### 方式 4: Docker 部署
+### 方式 4: Java JAR 部署 ☕ (推荐用于跨平台)
+
+#### VLESS+Reality
+
+```bash
+# 下载预编译的JAR文件
+wget https://github.com/wang-zewen/sub_link/releases/latest/download/vless-reality-server-2.0.0.jar
+
+# 运行（需要Java 17+）
+java -jar vless-reality-server-2.0.0.jar
+```
+
+#### VMess
+
+```bash
+# 下载预编译的JAR文件
+wget https://github.com/wang-zewen/sub_link/releases/latest/download/vmess-server-2.0.0.jar
+
+# 运行（需要Java 17+）
+java -jar vmess-server-2.0.0.jar
+```
+
+> 📖 **完整的Java使用文档**: [JAVA_README.md](JAVA_README.md)
+
+### 方式 5: Docker 部署
 
 ```bash
 # 构建镜像
@@ -113,6 +138,40 @@ services:
 ```bash
 docker-compose up -d
 ```
+
+## ☕ Java版本
+
+本项目提供完整的Java实现，可以生成独立的可执行JAR文件：
+
+### 特点
+- ✅ 纯Java实现，无需Shell脚本
+- ✅ 跨平台支持（Windows、Linux、macOS）
+- ✅ 单个JAR文件，方便分发
+- ✅ 自动构建和发布到GitHub Releases
+
+### 从源码编译
+
+```bash
+# 需要Java 17+和Maven
+mvn clean package
+
+# 生成的JAR文件位于target目录
+ls target/*.jar
+```
+
+### GitHub Actions自动发布
+
+项目配置了GitHub Actions工作流，会自动：
+- 在每次push时构建JAR
+- 创建tag时自动发布到GitHub Releases
+
+创建Release:
+```bash
+git tag -a v2.0.0 -m "Release version 2.0.0"
+git push origin v2.0.0
+```
+
+详细文档请查看: [JAVA_README.md](JAVA_README.md)
 
 ## 📱 客户端配置
 
