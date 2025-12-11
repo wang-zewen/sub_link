@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  vless-reality:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vless-reality-server
+    ports:
+      - "${PORT:-20041}:${PORT:-20041}"
+    environment:
+      - PORT=${PORT:-20041}
+      - VLESS_UUID=${VLESS_UUID}
+      - REALITY_SERVER_NAMES=${REALITY_SERVER_NAMES:-www.microsoft.com}
+      - REALITY_DEST=${REALITY_DEST:-www.microsoft.com:443}
+      - NODE_ENV=production
+    restart: unless-stopped
+    volumes:
+      - ./link.txt:/app/link.txt
+    networks:
+      - vless-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-20041}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  vless-network:
+    driver: bridge
