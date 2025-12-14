@@ -155,7 +155,7 @@ upload_node_info() {
     echo "1. Use default name (Node)"
     echo "2. Enter custom name"
     read -p "Your choice: " choice_name
-    case $choice in
+    case $choice_name in
         1)
             LOCATION="$LOCATION"
             ;;
