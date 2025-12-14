@@ -148,13 +148,30 @@ upload_node_info() {
 
     # 生成节点名称（基于IP和协议）
     LOCATION="Node"
-    if [[ $IP == 103.* ]] || [[ $IP == 119.* ]]; then
-        LOCATION="HK"
-    elif [[ $IP == 172.* ]] || [[ $IP == 45.* ]]; then
-        LOCATION="US"
-    elif [[ $IP == 89.* ]]; then
-        LOCATION="EU"
-    fi
+    echo "=========================================="
+    echo "📤 Node Upload Configuration"
+    echo "=========================================="
+    echo "Would you like to upload node info to management API?"
+    echo "1. Use default name (Node)"
+    echo "2. Enter custom name"
+    read -p "Your choice: " choice_name
+    case $choice in
+        1)
+            LOCATION="$LOCATION"
+            ;;
+        2)
+            read -p "Enter name: " LOCATION
+            if [ -z "$LOCATION" ]; then
+                echo "⏭️  Skipping node name."
+                return
+            fi
+            ;;
+        *)
+            echo "⏭️  Skipping node name."
+            return
+            ;;
+    esac
+    
 
     NODE_NAME="${LOCATION}-VLESS-Reality-${PORT}"
 
