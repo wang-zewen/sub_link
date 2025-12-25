@@ -2,7 +2,7 @@
 set -e
 
 # ==================== 配置 ====================
-PORT=${PORT:-${SERVER_PORT:-20041}}
+PORT=${PORT:-${SERVER_PORT:-8306}}
 UUID=${VLESS_UUID:-$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen)}
 V=1.8.24
 
