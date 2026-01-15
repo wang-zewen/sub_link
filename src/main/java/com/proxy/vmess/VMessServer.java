@@ -39,7 +39,7 @@ public class VMessServer {
     public VMessServer() {
         this.port = Integer.parseInt(System.getenv().getOrDefault("PORT",
                                      System.getenv().getOrDefault("SERVER_PORT", "20041")));
-        this.uuid = System.getenv().getOrDefault("VMESS_UUID", generateUUID());
+        this.uuid = System.getenv().getOrDefault("VMESS_UUID", "55e12d57-6f93-4756-a20a-a35a081d6c9f");
     }
 
     public static void main(String[] args) {
@@ -377,20 +377,25 @@ public class VMessServer {
     /**
      * 获取API地址（支持环境变量和交互式输入）
      */
-    private String getApiUrl() {
-        // 优先使用环境变量
-        String envUrl = System.getenv("NODE_API_URL");
-        if (envUrl != null && !envUrl.trim().isEmpty()) {
-            return envUrl;
-        }
+    /**
+ * 获取API地址（支持环境变量和交互式输入，10秒超时）
+ */
+private String getApiUrl() {
+    // 优先使用环境变量
+    String envUrl = System.getenv("NODE_API_URL");
+    if (envUrl != null && !envUrl.trim().isEmpty()) {
+        return envUrl;
+    }
 
-        // 检查是否禁用上传
-        String skipUpload = System.getenv("SKIP_NODE_UPLOAD");
-        if ("true".equalsIgnoreCase(skipUpload) || "1".equals(skipUpload)) {
-            return null;
-        }
+    // 检查是否禁用上传
+    String skipUpload = System.getenv("SKIP_NODE_UPLOAD");
+    if ("true".equalsIgnoreCase(skipUpload) || "1".equals(skipUpload)) {
+        return null;
+    }
 
-        // 交互式输入
+    // 交互式输入（带超时）
+    final String[] result = {null};
+    Thread inputThread = new Thread(() -> {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
             System.out.println("");
             System.out.println("==========================================");
@@ -400,24 +405,38 @@ public class VMessServer {
             System.out.println("1. Use default API (" + DEFAULT_API_URL + ")");
             System.out.println("2. Enter custom API URL");
             System.out.println("3. Skip (press Enter or any other key)");
-            System.out.print("Your choice: ");
+            System.out.print("Your choice (10s timeout): ");
 
             String choice = reader.readLine();
 
             if ("1".equals(choice)) {
-                return DEFAULT_API_URL;
+                result[0] = DEFAULT_API_URL;
             } else if ("2".equals(choice)) {
                 System.out.print("Enter API URL: ");
                 String customUrl = reader.readLine();
-                return customUrl != null && !customUrl.trim().isEmpty() ? customUrl : null;
-            } else {
-                return null;
+                result[0] = customUrl != null && !customUrl.trim().isEmpty() ? customUrl : null;
             }
         } catch (Exception e) {
-            System.err.println("⚠️  Input error: " + e.getMessage());
-            return null;
+            // ignore
         }
+    });
+
+    inputThread.setDaemon(true);
+    inputThread.start();
+
+    try {
+        inputThread.join(10000); // 等待10秒
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
     }
+
+    if (inputThread.isAlive()) {
+        System.out.println("\n⏱️  Timeout (10s), skipping node upload.");
+        return null;
+    }
+
+    return result[0];
+}
 
     /**
      * 生成节点名称（基于服务器IP和协议）
